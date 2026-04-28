@@ -5,7 +5,6 @@
 package validation_test
 
 import (
-	"github.com/Masterminds/semver/v3"
 	"github.com/gardener/gardener/pkg/apis/core"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -26,7 +25,7 @@ var _ = Describe("Shoot validation", func() {
 				Nodes: ptr.To("1.2.3.4/5"),
 			}
 
-			errorList := ValidateNetworking(networking, networkingPath, nil)
+			errorList := ValidateNetworking(networking, networkingPath)
 
 			Expect(errorList).To(BeEmpty())
 		})
@@ -34,7 +33,7 @@ var _ = Describe("Shoot validation", func() {
 		It("should return an error because no nodes CIDR was provided", func() {
 			networking := &core.Networking{}
 
-			errorList := ValidateNetworking(networking, networkingPath, nil)
+			errorList := ValidateNetworking(networking, networkingPath)
 
 			Expect(errorList).To(ConsistOf(
 				PointTo(MatchFields(IgnoreExtras, Fields{
@@ -46,9 +45,7 @@ var _ = Describe("Shoot validation", func() {
 
 		Describe("dual-stack", func() {
 			var (
-				networking              *core.Networking
-				validDualStackVersion   *semver.Version
-				invalidDualStackVersion *semver.Version
+				networking *core.Networking
 			)
 
 			BeforeEach(func() {
@@ -59,27 +56,6 @@ var _ = Describe("Shoot validation", func() {
 						core.IPFamilyIPv6,
 					},
 				}
-
-				var err error
-				validDualStackVersion, err = semver.NewVersion("1.31.7")
-				Expect(err).To(Succeed())
-				invalidDualStackVersion, err = semver.NewVersion("1.30.12")
-				Expect(err).To(Succeed())
-			})
-
-			It("should return an error for dual-stack because kubernetes release is too old", func() {
-				networking.ProviderConfig = &runtime.RawExtension{
-					Raw: []byte(`{"overlay":{"enabled":false}}`),
-				}
-
-				errorList := ValidateNetworking(networking, networkingPath, invalidDualStackVersion)
-
-				Expect(errorList).To(ConsistOf(
-					PointTo(MatchFields(IgnoreExtras, Fields{
-						"Type":  Equal(field.ErrorTypeInvalid),
-						"Field": Equal("spec.networking.ipFamilies"),
-					})),
-				))
 			})
 
 			It("should pass dual-stack", func() {
@@ -87,7 +63,7 @@ var _ = Describe("Shoot validation", func() {
 					Raw: []byte(`{"overlay":{"enabled":false}}`),
 				}
 
-				errorList := ValidateNetworking(networking, networkingPath, validDualStackVersion)
+				errorList := ValidateNetworking(networking, networkingPath)
 
 				Expect(errorList).To(BeEmpty())
 			})
@@ -97,7 +73,7 @@ var _ = Describe("Shoot validation", func() {
 					Raw: []byte(`{"overlay":{"enabled":true}}`),
 				}
 
-				errorList := ValidateNetworking(networking, networkingPath, validDualStackVersion)
+				errorList := ValidateNetworking(networking, networkingPath)
 				Expect(errorList).To(ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{
 					"Type":  Equal(field.ErrorTypeInvalid),
 					"Field": Equal("spec.networking.providerConfig.overlay.enabled"),
@@ -108,7 +84,7 @@ var _ = Describe("Shoot validation", func() {
 				networking.ProviderConfig = &runtime.RawExtension{
 					Raw: []byte(`{}`),
 				}
-				errorList := ValidateNetworking(networking, networkingPath, validDualStackVersion)
+				errorList := ValidateNetworking(networking, networkingPath)
 				Expect(errorList).To(ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{
 					"Type":  Equal(field.ErrorTypeInvalid),
 					"Field": Equal("spec.networking.ipFamilies"),
